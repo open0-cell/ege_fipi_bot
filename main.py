@@ -1,13 +1,13 @@
 import os
+import json
 import random
-import math
 import threading
 from flask import Flask
 import telebot
 from telebot import types
 
 # -------------------------------------------------------------------------
-# 1. FLASK-СЕРВЕР ДЛЯ ПИНГА (КЕЕP-ALIVE)
+# 1. FLASK-СЕРВЕР ДЛЯ ПИНГА (KEEP-ALIVE)
 # -------------------------------------------------------------------------
 app = Flask('')
 
@@ -28,141 +28,103 @@ bot = telebot.TeleBot(TOKEN)
 user_data = {}
 
 # -------------------------------------------------------------------------
-# 3. БАНК ЗАДАНИЙ ФИПИ
+# 3. ДИНАМИЧЕСКИЙ БАНК ЗАДАЧ ИЗ JSON
 # -------------------------------------------------------------------------
 class FIPIBank:
-    """Генератор задач ФИПИ по предметам."""
-
-    # --- МАТЕМАТИКА ---
-    @staticmethod
-    def math_task_1():
-        price = random.randint(100, 500) * 10
-        discount = random.choice([10, 15, 20, 25, 30, 40, 50])
-        ans = price * (100 - discount) // 100
-        return {
-            "subject": "math", "num": 1, "topic": "Простейшие текстовые задачи",
-            "question": f"Товар стоит {price} руб. Во время распродажи скидка составила {discount}%. Сколько стоит товар со скидкой?",
-            "answer": str(ans),
-            "solution": f"1) Находим стоимость с учетом скидки:\n{price} * (100 - {discount}) / 100 = {ans} руб."
-        }
-
-    @staticmethod
-    def math_task_2():
-        blue = random.randint(3, 12)
-        red = random.randint(3, 12)
-        green = random.randint(2, 8)
-        total = blue + red + green
-        ans = round(red / total, 2)
-        return {
-            "subject": "math", "num": 2, "topic": "Теория вероятностей",
-            "question": f"В таксопарке {total} машин: {blue} черных, {red} желтых и {green} зеленых. Найдите вероятность того, что на вызов приедет желтое такси. (Ответ округлите до сотых).",
-            "answer": str(ans),
-            "solution": f"P = (благоприятные исходы) / (всего) = {red} / {total} ≈ {ans}"
-        }
-
-    @staticmethod
-    def math_task_3():
-        a = random.randint(2, 9)
-        b = random.randint(1, 20)
-        x = random.randint(-10, 10)
-        c = a * x + b
-        return {
-            "subject": "math", "num": 3, "topic": "Уравнения",
-            "question": f"Найдите корень уравнения: {a}x + {b} = {c}",
-            "answer": str(x),
-            "solution": f"{a}x = {c} - {b}  =>  {a}x = {c - b}  =>  x = {x}"
-        }
-
-    # --- РУССКИЙ ЯЗЫК ---
-    @staticmethod
-    def rus_task_4():
-        words = [
-            ("звонит", "звонИт", "ударение падает на гласную И"),
-            ("торты", "тОрты", "ударение падает на гласную О (неподвижное)"),
-            ("красивее", "красИвее", "ударение сохраняется на И"),
-            ("квартал", "квартАл", "в любых значениях ударение на А"),
-            ("договор", "договОр", "ударение всегда на О")
-        ]
-        word, correct_stress, rule = random.choice(words)
-        return {
-            "subject": "rus", "num": 4, "topic": "Орфоэпические нормы (Ударения)",
-            "question": f"Укажите правильный вариант произношения слова (напишите слово с заглавной гласной под ударением, например: звонИт):\nСлово: {word}",
-            "answer": correct_stress.lower(),
-            "solution": f"Верное ударение: **{correct_stress}**.\nПравило: {rule}."
-        }
-
-    @staticmethod
-    def rus_task_5():
-        paronyms = [
-            ("Абонент временно недоступен", "абонент", "Абонент — лицо или организация, пользующаяся абонементом."),
-            ("Дипломатичный подход к решению проблемы", "дипломатичный", "Дипломатичный — тонкий, умелый, тактичный."),
-            ("Искусственный лед на арене", "искусственный", "Искусственный — сделанный подобием настоящего.")
-        ]
-        text, ans, rule = random.choice(paronyms)
-        return {
-            "subject": "rus", "num": 5, "topic": "Паронимы",
-            "question": f"Впишите выделенное слово в правильной форме:\n«{text}»",
-            "answer": ans.lower(),
-            "solution": f"Правильно: **{ans}**.\nРазбор: {rule}"
-        }
-
-    # --- ФИЗИКА ---
-    @staticmethod
-    def phys_task_1():
-        v = random.randint(10, 30)
-        t = random.randint(2, 10)
-        s = v * t
-        return {
-            "subject": "phys", "num": 1, "topic": "Механика (Равномерное движение)",
-            "question": f"Тело движется прямолинейно и равномерно со скоростью {v} м/с. Какой путь оно пройдет за {t} секунд?",
-            "answer": str(s),
-            "solution": f"Формула пути: S = v * t = {v} м/с * {t} с = {s} м."
-        }
-
-    @staticmethod
-    def phys_task_2():
-        m = random.randint(2, 10)
-        a = random.randint(2, 6)
-        f = m * a
-        return {
-            "subject": "phys", "num": 2, "topic": "Второй закон Ньютона",
-            "question": f"На тело массой {m} кг действует сила, сообщая ему ускорение {a} м/с². Найдите величину этой силы (в Н).",
-            "answer": str(f),
-            "solution": f"По II закону Ньютона: F = m * a = {m} * {a} = {f} Н."
-        }
-
-    # --- ИНФОРМАТИКА ---
-    @staticmethod
-    def cs_task_1():
-        num = random.randint(15, 255)
-        ans = bin(num)[2:]
-        return {
-            "subject": "cs", "num": 1, "topic": "Системы счисления",
-            "question": f"Переведите число {num} из десятичной системы счисления в двоичную.",
-            "answer": str(ans),
-            "solution": f"Последовательно делим {num} на 2 и записываем остатки снизу вверх: {ans}"
-        }
-
-    @staticmethod
-    def cs_task_2():
-        n = random.randint(3, 6)
-        ans = math.factorial(n)
-        return {
-            "subject": "cs", "num": 2, "topic": "Комбинаторика",
-            "question": f"Сколькими способами {n} разных файлов можно разместить в каталоге?",
-            "answer": str(ans),
-            "solution": f"Число перестановок P = {n}! = {ans}"
-        }
+    """Загрузчик задач из JSON-файлов в папке data/."""
 
     SUBJECTS = {
-        "math": {"name": "📐 Математика", "tasks": {1: math_task_1, 2: math_task_2, 3: math_task_3}},
-        "rus":  {"name": "📚 Русский язык", "tasks": {4: rus_task_4, 5: rus_task_5}},
-        "phys": {"name": "⚡ Физика", "tasks": {1: phys_task_1, 2: phys_task_2}},
-        "cs":   {"name": "💻 Информатика", "tasks": {1: cs_task_1, 2: cs_task_2}}
+        "math": {"name": "📐 Математика"},
+        "rus":  {"name": "📚 Русский язык"},
+        "phys": {"name": "⚡ Физика"},
+        "cs":   {"name": "💻 Информатика"}
     }
 
+    @staticmethod
+    def load_all_tasks(subject_code):
+        """Загружает список задач из файла data/{subject_code}.json"""
+        filepath = f"data/{subject_code}.json"
+        if not os.path.exists(filepath):
+            return []
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Ошибка чтения файла {filepath}: {e}")
+            return []
+
+    @staticmethod
+    def get_task(subject_code, task_num=None):
+        """Возвращает случайную задачу по номеру или из всего предмета."""
+        all_tasks = FIPIBank.load_all_tasks(subject_code)
+        if not all_tasks:
+            return None
+
+        if task_num is not None:
+            filtered = [t for t in all_tasks if str(t.get("num")) == str(task_num)]
+            if not filtered:
+                return None
+            task = random.choice(filtered).copy()
+        else:
+            task = random.choice(all_tasks).copy()
+
+        task["subject"] = subject_code
+        return task
+
+    @staticmethod
+    def get_available_numbers(subject_code):
+        """Возвращает список доступных номеров заданий для предмета."""
+        tasks = FIPIBank.load_all_tasks(subject_code)
+        numbers = sorted(list(set(int(t["num"]) for t in tasks if "num" in t)))
+        return numbers
+
+    @staticmethod
+    def get_full_variant(subject_code):
+        """Формирует вариант: по 1 случайной задаче каждого доступного номера."""
+        tasks = FIPIBank.load_all_tasks(subject_code)
+        if not tasks:
+            return []
+
+        numbers = sorted(list(set(int(t["num"]) for t in tasks if "num" in t)))
+        variant = []
+        for num in numbers:
+            t = FIPIBank.get_task(subject_code, task_num=num)
+            if t:
+                variant.append(t)
+        return variant
+
 # -------------------------------------------------------------------------
-# 4. КЛАВИАТУРЫ И МЕНЮ
+# 4. ВСПАМОГАТЕЛЬНЫЕ ФУНКЦИИ ОТПРАВКИ
+# -------------------------------------------------------------------------
+def send_task_message(user_id, task, prefix_text=""):
+    """Отправляет задачу с фото (если есть) или текстом."""
+    caption = (
+        f"{prefix_text}"
+        f"📌 **Задание №{task['num']}** ({task.get('topic', 'Тема не указана')})\n\n"
+        f"❓ {task['question']}\n\n"
+        f"👉 *Отправь ответ сообщением в чат:*"
+    )
+
+    photo_id = task.get("photo", "").strip()
+    if photo_id:
+        bot.send_photo(user_id, photo=photo_id, caption=caption, parse_mode="Markdown")
+    else:
+        bot.send_message(user_id, caption, parse_mode="Markdown")
+
+def send_next_variant_task(user_id):
+    queue = user_data[user_id]["variant_queue"]
+    if queue:
+        task = queue.pop(0)
+        user_data[user_id]["current_task"] = task
+        prefix = f"📝 **Вариант ЕГЭ** (Осталось задач: {len(queue) + 1})\n\n"
+        send_task_message(user_id, task, prefix_text=prefix)
+    else:
+        user_data[user_id]["mode"] = None
+        user_data[user_id]["current_task"] = None
+        bot.send_message(user_id, "🎉 **Поздравляем! Ты полностью прошёл вариант ЕГЭ.**", reply_markup=get_main_menu())
+
+# -------------------------------------------------------------------------
+# 5. КЛАВИАТУРЫ И МЕНЮ
 # -------------------------------------------------------------------------
 def get_main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -185,7 +147,7 @@ def get_action_inline_keyboard(sub_code):
     return markup
 
 # -------------------------------------------------------------------------
-# 5. ОБРАБОТЧИКИ СООБЩЕНИЙ И CALLBACKS
+# 6. ОБРАБОТЧИКИ СООБЩЕНИЙ И CALLBACKS
 # -------------------------------------------------------------------------
 @bot.message_handler(commands=['start'])
 def cmd_start(message):
@@ -193,7 +155,7 @@ def cmd_start(message):
         message.chat.id,
         f"Привет, {message.from_user.first_name}! 👋\n\n"
         f"Это бот-тренажёр **ЕГЭ из банка ФИПИ**.\n"
-        f"Здесь ты можешь нарезать отдельные задания или решать целые варианты с подробными разборами!",
+        f"Выбирай предмет и начинай подготовку!",
         parse_mode="Markdown",
         reply_markup=get_main_menu()
     )
@@ -230,56 +192,44 @@ def handle_callbacks(call):
 
     elif data.startswith("act_tasks_"):
         sub_code = data.split("_")[2]
-        tasks = FIPIBank.SUBJECTS[sub_code]["tasks"]
-        markup = types.InlineKeyboardMarkup(row_width=2)
-        for num in tasks.keys():
-            markup.add(types.InlineKeyboardButton(f"Задание №{num}", callback_data=f"gen_{sub_code}_{num}"))
+        available_nums = FIPIBank.get_available_numbers(sub_code)
+
+        if not available_nums:
+            bot.answer_callback_query(call.id, "В базе пока нет задач по этому предмету!", show_alert=True)
+            return
+
+        markup = types.InlineKeyboardMarkup(row_width=3)
+        buttons = [types.InlineKeyboardButton(f"№{num}", callback_data=f"gen_{sub_code}_{num}") for num in available_nums]
+        markup.add(*buttons)
         markup.add(types.InlineKeyboardButton("🔙 Назад", callback_data=f"sub_{sub_code}"))
+
         bot.edit_message_text("Выбери номер задания для нарезки:", chat_id=user_id, message_id=call.message.message_id, reply_markup=markup)
 
     elif data.startswith("gen_"):
         _, sub_code, num = data.split("_")
-        task_fn = FIPIBank.SUBJECTS[sub_code]["tasks"][int(num)]
-        task = task_fn()
+        task = FIPIBank.get_task(sub_code, task_num=num)
+
+        if not task:
+            bot.send_message(user_id, "Не удалось найти задачу с этим номером.")
+            return
+
         user_data[user_id]["mode"] = "single"
         user_data[user_id]["current_task"] = task
-        
-        bot.send_message(
-            user_id,
-            f"📌 **Задание №{task['num']}** ({task['topic']})\n\n"
-            f"❓ {task['question']}\n\n"
-            f"👉 *Отправь ответ сообщением в чат:*",
-            parse_mode="Markdown"
-        )
+        send_task_message(user_id, task)
 
     elif data.startswith("act_variant_"):
         sub_code = data.split("_")[2]
-        tasks_dict = FIPIBank.SUBJECTS[sub_code]["tasks"]
-        variant_queue = [fn() for fn in tasks_dict.values()]
-        
+        variant_queue = FIPIBank.get_full_variant(sub_code)
+
+        if not variant_queue:
+            bot.answer_callback_query(call.id, "Недостаточно задач для формирования варианта!", show_alert=True)
+            return
+
         user_data[user_id]["mode"] = "variant"
         user_data[user_id]["variant_queue"] = variant_queue
-        
+
         bot.send_message(user_id, f"🚀 **Вариант сформирован!** Всего заданий: {len(variant_queue)}.\nНачинаем прорешивание.")
         send_next_variant_task(user_id)
-
-def send_next_variant_task(user_id):
-    queue = user_data[user_id]["variant_queue"]
-    if queue:
-        task = queue.pop(0)
-        user_data[user_id]["current_task"] = task
-        bot.send_message(
-            user_id,
-            f"📝 **Вариант ЕГЭ** (Осталось задач: {len(queue) + 1})\n\n"
-            f"📌 **Задание №{task['num']}** ({task['topic']})\n"
-            f"❓ {task['question']}\n\n"
-            f"👉 *Введи ответ:*",
-            parse_mode="Markdown"
-        )
-    else:
-        user_data[user_id]["mode"] = None
-        user_data[user_id]["current_task"] = None
-        bot.send_message(user_id, "🎉 **Поздравляем! Ты полностью прошел вариант ЕГЭ.**", reply_markup=get_main_menu())
 
 @bot.message_handler(func=lambda msg: True)
 def check_user_answer(message):
@@ -290,7 +240,7 @@ def check_user_answer(message):
 
     task = user_data[user_id]["current_task"]
     user_ans = message.text.strip().lower()
-    correct_ans = task["answer"].strip().lower()
+    correct_ans = str(task["answer"]).strip().lower()
 
     user_data[user_id]["total"] += 1
 
@@ -299,11 +249,13 @@ def check_user_answer(message):
     next_markup = types.InlineKeyboardMarkup()
     next_markup.add(types.InlineKeyboardButton(f"🔄 Следующее Задание №{task_num}", callback_data=f"gen_{sub_code}_{task_num}"))
 
+    solution_text = task.get('solution', 'Разбор отсутствует.')
+
     if user_ans == correct_ans:
         user_data[user_id]["correct"] += 1
         bot.send_message(
             user_id,
-            f"✅ **Верно!**\n\n💡 **Разбор решения:**\n{task['solution']}",
+            f"✅ **Верно!**\n\n💡 **Разбор решения:**\n{solution_text}",
             parse_mode="Markdown"
         )
     else:
@@ -311,7 +263,7 @@ def check_user_answer(message):
             user_id,
             f"❌ **Неверно.**\n"
             f"Правильный ответ: `{task['answer']}`\n\n"
-            f"💡 **Разбор решения:**\n{task['solution']}",
+            f"💡 **Разбор решения:**\n{solution_text}",
             parse_mode="Markdown"
         )
 
@@ -322,11 +274,11 @@ def check_user_answer(message):
         send_next_variant_task(user_id)
 
 # -------------------------------------------------------------------------
-# 6. ЗАПУСК ДВУХ ПОТОКОВ (FLASK + TELEGRAM BOT)
+# 7. ЗАПУСК FLASK + TELEGRAM BOT
 # -------------------------------------------------------------------------
 if __name__ == "__main__":
     t = threading.Thread(target=run_http)
     t.start()
-    
-    print("Бот запущен...")
+
+    print("Бот запущен на базе JSON-хранилища...")
     bot.infinity_polling(timeout=10, long_polling_timeout=5)
