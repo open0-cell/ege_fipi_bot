@@ -34,10 +34,11 @@ class FIPIBank:
     """Загрузчик задач из JSON-файлов в папке data/."""
 
     SUBJECTS = {
-        "math": {"name": "📐 Математика"},
-        "rus":  {"name": "📚 Русский язык"},
-        "phys": {"name": "⚡ Физика"},
-        "cs":   {"name": "💻 Информатика"}
+        "math_prof": {"name": "📐 Математика (Профиль)"},
+        "math_base": {"name": "📏 Математика (База)"},
+        "rus":       {"name": "📚 Русский язык"},
+        "phys":      {"name": "⚡ Физика"},
+        "cs":        {"name": "💻 Информатика"}
     }
 
     @staticmethod
@@ -94,7 +95,7 @@ class FIPIBank:
         return variant
 
 # -------------------------------------------------------------------------
-# 4. ВСПАМОГАТЕЛЬНЫЕ ФУНКЦИИ ОТПРАВКИ
+# 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ОТПРАВКИ
 # -------------------------------------------------------------------------
 def send_task_message(user_id, task, prefix_text=""):
     """Отправляет задачу с фото (если есть) или текстом."""
@@ -105,7 +106,7 @@ def send_task_message(user_id, task, prefix_text=""):
         f"👉 *Отправь ответ сообщением в чат:*"
     )
 
-    photo_id = task.get("photo", "").strip()
+    photo_id = str(task.get("photo", "")).strip()
     if photo_id:
         bot.send_photo(user_id, photo=photo_id, caption=caption, parse_mode="Markdown")
     else:
@@ -132,7 +133,7 @@ def get_main_menu():
     return markup
 
 def get_subject_inline_keyboard():
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(row_width=1)
     for code, info in FIPIBank.SUBJECTS.items():
         markup.add(types.InlineKeyboardButton(info["name"], callback_data=f"sub_{code}"))
     return markup
@@ -174,6 +175,16 @@ def handle_text_menu(message):
         percent = round((c / t * 100), 1) if t > 0 else 0
         bot.send_message(user_id, f"📈 **Твоя статистика:**\n\nРешено задач: {t}\nПравильно: {c}\nТочность: {percent}%", parse_mode="Markdown")
 
+# ОБРАБОТЧИК ФОТО И ДОКУМЕНТОВ (Выдает file_id)
+@bot.message_handler(content_types=['photo', 'document'])
+def handle_photo_or_doc(message):
+    if message.photo:
+        photo_id = message.photo[-1].file_id
+        bot.reply_to(message, f"📷 **file_id этой картинки:**\n\n`{photo_id}`", parse_mode="Markdown")
+    elif message.document and message.document.mime_type and message.document.mime_type.startswith('image/'):
+        file_id = message.document.file_id
+        bot.reply_to(message, f"📁 **file_id этой картинки (документ):**\n\n`{file_id}`", parse_mode="Markdown")
+
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
     user_id = call.message.chat.id
@@ -186,12 +197,12 @@ def handle_callbacks(call):
         bot.edit_message_text("Выбери предмет для подготовки:", chat_id=user_id, message_id=call.message.message_id, reply_markup=get_subject_inline_keyboard())
 
     elif data.startswith("sub_"):
-        sub_code = data.split("_")[1]
+        sub_code = data.split("sub_")[1]
         sub_name = FIPIBank.SUBJECTS[sub_code]["name"]
         bot.edit_message_text(f"Предмет: **{sub_name}**\nЧто будем делать?", chat_id=user_id, message_id=call.message.message_id, parse_mode="Markdown", reply_markup=get_action_inline_keyboard(sub_code))
 
     elif data.startswith("act_tasks_"):
-        sub_code = data.split("_")[2]
+        sub_code = data.split("act_tasks_")[1]
         available_nums = FIPIBank.get_available_numbers(sub_code)
 
         if not available_nums:
@@ -206,7 +217,10 @@ def handle_callbacks(call):
         bot.edit_message_text("Выбери номер задания для нарезки:", chat_id=user_id, message_id=call.message.message_id, reply_markup=markup)
 
     elif data.startswith("gen_"):
-        _, sub_code, num = data.split("_")
+        parts = data.split("_")
+        num = parts[-1]
+        sub_code = "_".join(parts[1:-1])
+
         task = FIPIBank.get_task(sub_code, task_num=num)
 
         if not task:
@@ -218,7 +232,7 @@ def handle_callbacks(call):
         send_task_message(user_id, task)
 
     elif data.startswith("act_variant_"):
-        sub_code = data.split("_")[2]
+        sub_code = data.split("act_variant_")[1]
         variant_queue = FIPIBank.get_full_variant(sub_code)
 
         if not variant_queue:
@@ -231,7 +245,7 @@ def handle_callbacks(call):
         bot.send_message(user_id, f"🚀 **Вариант сформирован!** Всего заданий: {len(variant_queue)}.\nНачинаем прорешивание.")
         send_next_variant_task(user_id)
 
-@bot.message_handler(func=lambda msg: True)
+@bot.message_handler(content_types=['text'])
 def check_user_answer(message):
     user_id = message.chat.id
     if user_id not in user_data or user_data[user_id]["current_task"] is None:
@@ -276,16 +290,6 @@ def check_user_answer(message):
 # -------------------------------------------------------------------------
 # 7. ЗАПУСК FLASK + TELEGRAM BOT
 # -------------------------------------------------------------------------
-# Вспомогательная команда для получения file_id фото
-@bot.message_handler(content_types=['photo'])
-def handle_photo(message):
-    # Берём самое высокое разрешение фото (последний элемент в массиве)
-    photo_id = message.photo[-1].file_id
-    bot.reply_to(
-        message, 
-        f"📷 **file_id этой картинки:**\n\n`{photo_id}`", 
-        parse_mode="Markdown"
-    )
 if __name__ == "__main__":
     t = threading.Thread(target=run_http)
     t.start()
