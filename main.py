@@ -276,6 +276,16 @@ def check_user_answer(message):
 # -------------------------------------------------------------------------
 # 7. ЗАПУСК FLASK + TELEGRAM BOT
 # -------------------------------------------------------------------------
+# Вспомогательная команда для получения file_id фото
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
+    # Берём самое высокое разрешение фото (последний элемент в массиве)
+    photo_id = message.photo[-1].file_id
+    bot.reply_to(
+        message, 
+        f"📷 **file_id этой картинки:**\n\n`{photo_id}`", 
+        parse_mode="Markdown"
+    )
 if __name__ == "__main__":
     t = threading.Thread(target=run_http)
     t.start()
